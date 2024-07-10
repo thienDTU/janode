@@ -13,7 +13,7 @@ import Configuration from './configuration.js';
 import Connection from './connection.js';
 import { JANODE as JANODE_PROTO } from './protocol.js';
 const { EVENT } = JANODE_PROTO;
-
+import 'dotenv/config';
 /**
  * An object describing a janus server (e.g. url, secret).
  *

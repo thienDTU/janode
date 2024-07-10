@@ -36,6 +36,7 @@
     "src/plugins/*.js"
   ],
   "dependencies": {
+    "dotenv": "^16.4.5",
     "isomorphic-ws": "^4.0.1",
     "mongoose": "^8.5.0",
     "unix-dgram": "^2.0.4",
