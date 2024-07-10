@@ -4,7 +4,6 @@ import { readFileSync } from 'fs';
 import Janode from '../../../src/janode.js';
 import config from './config.js';
 const { janode: janodeConfig, web: serverConfig } = config;
-
 import { fileURLToPath } from 'url';
 import { dirname, basename } from 'path';
 const __filename = fileURLToPath(import.meta.url);
@@ -13,9 +12,16 @@ const __dirname = dirname(__filename);
 const { Logger } = Janode;
 const LOG_NS = `[${basename(__filename)}]`;
 import VideoRoomPlugin from '../../../src/plugins/videoroom-plugin.js';
-
+import LiveController from '../../../src/dtutube/controllers/live.js';
+import DBConnection from '../../../src/dtutube/db.js';
 import express from 'express';
 const app = express();
+DBConnection();
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*'); // Cho phép mọi nguồn (origin) hoặc chỉ định một nguồn cụ thể
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  next();
+});
 const options = {
   key: serverConfig.key ? readFileSync(serverConfig.key) : null,
   cert: serverConfig.cert ? readFileSync(serverConfig.cert) : null,
@@ -24,7 +30,16 @@ import { createServer as createHttpsServer } from 'https';
 import { createServer as createHttpServer } from 'http';
 const httpServer = (options.key && options.cert) ? createHttpsServer(options, app) : createHttpServer(app);
 import { Server } from 'socket.io';
-const io = new Server(httpServer);
+const io = new Server(httpServer,
+  {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"],
+      allowedHeaders: ["Origin", "X-Requested-With", "Content-Type", "Accept"],
+      credentials: true
+    }
+  }
+);
 
 const scheduleBackEndConnection = (function () {
   let task = null;
@@ -110,6 +125,7 @@ function initFrontEnd() {
 
   io.on('connection', function (socket) {
     const remote = `[${socket.request.connection.remoteAddress}:${socket.request.connection.remotePort}]`;
+    let roomLive = null;
     Logger.info(`${LOG_NS} ${remote} connection with client established`);
 
     const msHandles = (function () {
@@ -162,9 +178,11 @@ function initFrontEnd() {
     socket.on('join', async (evtdata = {}) => {
       Logger.info(`${LOG_NS} ${remote} join received`);
       const { _id, data: joindata = {} } = evtdata;
-
+      roomLive = await LiveController.getLiveById(joindata.room);
+      console.log(roomLive);
+      if (!roomLive) return replyError(socket, 'Room live not found', joindata, _id);
+      if (roomLive.status === 'Ended') return replyError(socket, 'Room live is ended', joindata, _id);
       if (!checkSessions(janodeSession, true, socket, evtdata)) return;
-
       let pubHandle;
 
       try {
@@ -221,16 +239,40 @@ function initFrontEnd() {
         pubHandle.on(Janode.EVENT.HANDLE_TRICKLE, evtdata => Logger.info(`${LOG_NS} ${pubHandle.name} trickle event ${JSON.stringify(evtdata)}`));
 
         const response = await pubHandle.joinPublisher(joindata);
-
+        console.log("joindata", JSON.stringify(response))
         replyEvent(socket, 'joined', response, _id);
 
-        Logger.info(`${LOG_NS} ${remote} joined sent`);
+
+        // Logger.info(`${LOG_NS} ${JSON.stringify(response)} event data 0--------------------------`);
+        // const rtpstartdata = {
+        //   room: response.room,
+        //   feed: response.feed,
+        //   video_port: 8004,
+        //   audio_port: 8006,
+        //   secret: 'adminpwd',
+        //   audiopt: 111,
+        //   videopt: 126,
+        //   host: "127.0.0.1"
+        // // }
+
+        // console.log("rtpstartdata", rtpstartdata)
+        // try {
+
+        //   const response = await janodeManagerHandle.startForward(rtpstartdata);
+        //   console.log("response root", response)
+        //   replyEvent(socket, 'rtp-fwd-started', response, _id);
+        //   Logger.info(`${LOG_NS} ${remote} rtp-fwd-started sent`);
+        // } catch ({ message }) {
+        //   replyError(socket, message, rtpstartdata, _id);
+        // }
       } catch ({ message }) {
         if (pubHandle) pubHandle.detach().catch(() => { });
         replyError(socket, message, joindata, _id);
       }
     });
 
+
+    // save 1
     socket.on('subscribe', async (evtdata = {}) => {
       Logger.info(`${LOG_NS} ${remote} subscribe received`);
       const { _id, data: subscribedata = {} } = evtdata;
@@ -295,18 +337,39 @@ function initFrontEnd() {
       }
     });
 
+    //save 
     socket.on('configure', async (evtdata = {}) => {
       Logger.info(`${LOG_NS} ${remote} configure received`);
       const { _id, data: confdata = {} } = evtdata;
 
       const handle = msHandles.getHandleByFeed(confdata.feed);
       if (!checkSessions(janodeSession, handle, socket, evtdata)) return;
-
+      if (!roomLive) return replyError(socket, 'Room live not found', confdata, _id);
       try {
         const response = await handle.configure(confdata);
         delete response.configured;
         replyEvent(socket, 'configured', response, _id);
         Logger.info(`${LOG_NS} ${remote} configured sent`);
+        console.log("response", JSON.stringify(response));
+        const rtpstartdata = {
+          room: confdata.room,
+          feed: confdata.feed,
+          video_port: Number(roomLive.videoPort),
+          audio_port: Number(roomLive.audioPort),
+          secret: 'adminpwd',
+          audiopt: 111,
+          videopt: 126,
+          host: "127.0.0.1"
+        }
+        console.log("rtpstartdata", rtpstartdata)
+        try {
+          const response = await janodeManagerHandle.startForward(rtpstartdata);
+          console.log("response root", response)
+          replyEvent(socket, 'rtp-fwd-started', response, _id);
+          Logger.info(`${LOG_NS} ${remote} rtp-fwd-started sent`);
+        } catch ({ message }) {
+          replyError(socket, message, rtpstartdata, _id);
+        }
       } catch ({ message }) {
         replyError(socket, message, confdata, _id);
       }
@@ -348,7 +411,8 @@ function initFrontEnd() {
     socket.on('start', async (evtdata = {}) => {
       Logger.info(`${LOG_NS} ${remote} start received`);
       const { _id, data: startdata = {} } = evtdata;
-
+      console.log("-------------------------------------------")
+      console.log("startdata", JSON.stringify(startdata));
       const handle = msHandles.getSubHandle();
       if (!checkSessions(janodeSession, handle, socket, evtdata)) return;
 
@@ -540,9 +604,11 @@ function initFrontEnd() {
       if (!checkSessions(janodeSession, janodeManagerHandle, socket, evtdata)) return;
 
       try {
+        console.log("rtpstartdata root", rtpstartdata)
         const response = await janodeManagerHandle.startForward(rtpstartdata);
-        replyEvent(socket, 'rtp-fwd-started', response, _id);
-        Logger.info(`${LOG_NS} ${remote} rtp-fwd-started sent`);
+        console.log("response", response)
+        // replyEvent(socket, 'rtp-fwd-started', response, _id);
+        // Logger.info(`${LOG_NS} ${remote} rtp-fwd-started sent`);
       } catch ({ message }) {
         replyError(socket, message, rtpstartdata, _id);
       }
