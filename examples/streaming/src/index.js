@@ -4,6 +4,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import Janode from '../../../src/janode.js';
 import config from './config.js';
+import cors from 'cors';
 const { janode: janodeConfig, web: serverConfig, streaming: streamingConfig } = config;
 
 import { fileURLToPath } from 'url';
@@ -17,6 +18,7 @@ import StreamingPlugin from '../../../src/plugins/streaming-plugin.js';
 
 import express from 'express';
 const app = express();
+app.use(cors());
 const options = {
   key: serverConfig.key ? readFileSync(serverConfig.key) : null,
   cert: serverConfig.cert ? readFileSync(serverConfig.cert) : null,
