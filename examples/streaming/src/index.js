@@ -18,7 +18,6 @@ import StreamingPlugin from '../../../src/plugins/streaming-plugin.js';
 
 import express from 'express';
 const app = express();
-app.use(cors());
 const options = {
   key: serverConfig.key ? readFileSync(serverConfig.key) : null,
   cert: serverConfig.cert ? readFileSync(serverConfig.cert) : null,
@@ -27,7 +26,14 @@ import { createServer as createHttpsServer } from 'https';
 import { createServer as createHttpServer } from 'http';
 const httpServer = (options.key && options.cert) ? createHttpsServer(options, app) : createHttpServer(app);
 import { Server } from 'socket.io';
-const io = new Server(httpServer);
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Origin", "X-Requested-With", "Content-Type", "Accept"],
+    credentials: true
+  }
+});
 
 const scheduleBackEndConnection = (function () {
   let task = null;
