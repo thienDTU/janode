@@ -178,6 +178,9 @@ function initFrontEnd() {
     socket.on('join', async (evtdata = {}) => {
       Logger.info(`${LOG_NS} ${remote} join received`);
       const { _id, data: joindata = {} } = evtdata;
+      console.log("_id", _id );
+      console.log("joindata check", JSON.stringify(joindata) );
+      console.log("evtdata check",JSON.stringify(evtdata) );
       roomLive = await LiveController.getLiveById(joindata.room);
       console.log(roomLive);
       if (!roomLive) return replyError(socket, 'Room live not found', joindata, _id);
@@ -193,18 +196,22 @@ function initFrontEnd() {
         // custom videoroom publisher/manager events
 
         pubHandle.on(VideoRoomPlugin.EVENT.VIDEOROOM_DESTROYED, evtdata => {
+          console.log("videoroom destroyed")
           replyEvent(socket, 'destroyed', evtdata);
         });
 
         pubHandle.on(VideoRoomPlugin.EVENT.VIDEOROOM_PUB_LIST, evtdata => {
+          console.log("videoroom destroyed feed-list")
           replyEvent(socket, 'feed-list', evtdata);
         });
 
         pubHandle.on(VideoRoomPlugin.EVENT.VIDEOROOM_PUB_PEER_JOINED, evtdata => {
+          console.log("videoroom feed-joined")
           replyEvent(socket, 'feed-joined', evtdata);
         });
 
         pubHandle.on(VideoRoomPlugin.EVENT.VIDEOROOM_UNPUBLISHED, evtdata => {
+          console.log("videoroom unpublished")
           replyEvent(socket, 'unpublished', evtdata);
         });
 
@@ -212,18 +219,22 @@ function initFrontEnd() {
           if (pubHandle.feed === evtdata.feed) {
             await msHandles.detachPubHandle();
           }
+          console.log("videoroom leaving")
           replyEvent(socket, 'leaving', evtdata);
         });
 
         pubHandle.on(VideoRoomPlugin.EVENT.VIDEOROOM_DISPLAY, evtdata => {
+          console.log("videoroom display")
           replyEvent(socket, 'display', evtdata);
         });
 
         pubHandle.on(VideoRoomPlugin.EVENT.VIDEOROOM_TALKING, evtdata => {
+          console.log("videoroom talking")
           replyEvent(socket, 'talking', evtdata);
         });
 
         pubHandle.on(VideoRoomPlugin.EVENT.VIDEOROOM_KICKED, async evtdata => {
+          console.log("videoroom kicked")
           replyEvent(socket, 'kicked', evtdata);
         });
 
@@ -237,9 +248,9 @@ function initFrontEnd() {
           msHandles.setPubHandle(null);
         });
         pubHandle.on(Janode.EVENT.HANDLE_TRICKLE, evtdata => Logger.info(`${LOG_NS} ${pubHandle.name} trickle event ${JSON.stringify(evtdata)}`));
-
+        console.log("join joinPublisher", JSON.stringify(joindata))
         const response = await pubHandle.joinPublisher(joindata);
-        console.log("joindata", JSON.stringify(response))
+        console.log("joindata joinPublisher response", JSON.stringify(response))
         replyEvent(socket, 'joined', response, _id);
 
 
@@ -266,6 +277,9 @@ function initFrontEnd() {
         //   replyError(socket, message, rtpstartdata, _id);
         // }
       } catch ({ message }) {
+        console.log("_id", _id)
+        console.log("joindata error", JSON.stringify(joindata))
+        console.log("error join", message )
         if (pubHandle) pubHandle.detach().catch(() => { });
         replyError(socket, message, joindata, _id);
       }
@@ -341,11 +355,12 @@ function initFrontEnd() {
     socket.on('configure', async (evtdata = {}) => {
       Logger.info(`${LOG_NS} ${remote} configure received`);
       const { _id, data: confdata = {} } = evtdata;
-
+      console.log(JSON.stringify(evtdata));
       const handle = msHandles.getHandleByFeed(confdata.feed);
-      if (!checkSessions(janodeSession, handle, socket, evtdata)) return;
+      if (!checkSessions(janodeSession, handle, socket, evtdata))  return replyError(socket, 'janodeSession not found', confdata, _id);
       if (!roomLive) return replyError(socket, 'Room live not found', confdata, _id);
       try {
+        console.log("Có vào try room")
         const response = await handle.configure(confdata);
         delete response.configured;
         replyEvent(socket, 'configured', response, _id);
@@ -461,9 +476,9 @@ function initFrontEnd() {
     socket.on('trickle', async (evtdata = {}) => {
       Logger.info(`${LOG_NS} ${remote} trickle received`);
       const { _id, data: trickledata = {} } = evtdata;
-
+      console.log(JSON.stringify(evtdata));
       const handle = msHandles.getHandleByFeed(trickledata.feed);
-      if (!checkSessions(janodeSession, handle, socket, evtdata)) return;
+      if (!checkSessions(janodeSession, handle, socket, evtdata)) return replyError(socket, "trickledata janodeSession error", trickledata, _id);
 
       handle.trickle(trickledata.candidate).catch(({ message }) => replyError(socket, message, trickledata, _id));
     });
