@@ -198,7 +198,7 @@ function initFrontEnd() {
       Logger.info(`${LOG_NS} ${remote} trickle received`);
       const { _id, data: trickledata = {} } = evtdata;
       console.log(JSON.stringify(evtdata))
-      if (!checkSessions(janodeSession, streamingHandle, socket, evtdata)) return;
+      if (!checkSessions(janodeSession, streamingHandle, socket, evtdata))  replyError(socket, "checkSessions trickle streaming error", trickledata, _id);
 
       streamingHandle.trickle(trickledata.candidate).catch(({ message }) => replyError(socket, message, trickledata, _id));
     });
