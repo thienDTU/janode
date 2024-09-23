@@ -7,7 +7,7 @@ const RTCPeerConnection = (window.RTCPeerConnection || window.webkitRTCPeerConne
 
 let streamingPeerConnection;
 const remoteVideo = document.getElementById('remoteVideo');
-const myStream = parseInt(getURLParameter('stream')) || 1;
+const myStream = parseInt(getURLParameter('stream')) || 1234;
 const myPin = getURLParameter('pin') || null;
 
 let decoder;

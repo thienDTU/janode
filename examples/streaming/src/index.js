@@ -128,9 +128,7 @@ function initFrontEnd() {
     socket.on('watch', async (evtdata = {}) => {
       Logger.info(`${LOG_NS} ${remote} watch received`);
       const { _id, data: watchdata = {} } = evtdata;
-
       if (!checkSessions(janodeSession, true, socket, evtdata)) return;
-
       try {
         if (!streamingHandle) {
           streamingHandle = await janodeSession.attach(StreamingPlugin);
@@ -176,9 +174,7 @@ function initFrontEnd() {
     socket.on('start', async (evtdata = {}) => {
       Logger.info(`${LOG_NS} ${remote} start received`);
       const { _id, data: startdata = {} } = evtdata;
-
       if (!checkSessions(janodeSession, streamingHandle, socket, evtdata)) return;
-
       try {
         const { status, id } = await streamingHandle.start(startdata);
         replyEvent(socket, status, { id }, _id);
@@ -193,8 +189,7 @@ function initFrontEnd() {
     socket.on('trickle', async (evtdata = {}) => {
       Logger.info(`${LOG_NS} ${remote} trickle received`);
       const { _id, data: trickledata = {} } = evtdata;
-
-      if (!checkSessions(janodeSession, streamingHandle, socket, evtdata)) return;
+      if (!checkSessions(janodeSession, streamingHandle, socket, evtdata))  replyError(socket, "checkSessions trickle streaming error", trickledata, _id);
 
       streamingHandle.trickle(trickledata.candidate).catch(({ message }) => replyError(socket, message, trickledata, _id));
     });
@@ -203,7 +198,6 @@ function initFrontEnd() {
     socket.on('trickle-complete', async (evtdata = {}) => {
       Logger.info(`${LOG_NS} ${remote} trickle-complete received`);
       const { _id, data: trickledata = {} } = evtdata;
-
       if (!checkSessions(janodeSession, streamingHandle, socket, evtdata)) return;
 
       streamingHandle.trickleComplete().catch(({ message }) => replyError(socket, message, trickledata, _id));
