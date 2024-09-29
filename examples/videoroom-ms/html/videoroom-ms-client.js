@@ -629,8 +629,15 @@ async function doOffer(feed, display) {
   if (!pubPc) {
     const pc = new RTCPeerConnection({
       'iceServers': [{
-        urls: 'stun:stun.l.google.com:19302'
-      }],
+        urls: 'stun:stun.l.google.com:19302',
+        
+      },
+      {
+        urls: "turn:35.240.133.164:3478",
+        username: "username",
+        credential: "password"
+      }
+    ],
     });
 
     pc.onnegotiationneeded = event => console.log('pc.onnegotiationneeded', event);

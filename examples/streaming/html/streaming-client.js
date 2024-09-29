@@ -308,7 +308,7 @@ async function doAnswer(offer) {
           urls: 'stun:stun.l.google.com:19302'
         },
         {
-          urls: "turn:34.125.2.193:3478",
+          urls: "turn:35.240.133.164:3478",
           username: "username",
           credential: "password"
         },],

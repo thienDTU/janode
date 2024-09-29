@@ -312,12 +312,14 @@ function initFrontEnd() {
     socket.on('configure', async (evtdata = {}) => {
       Logger.info(`${LOG_NS} ${remote} configure received`);
       const { _id, data: confdata = {} } = evtdata;
+      console.log("configure", JSON.stringify(confdata))
       const handle = msHandles.getHandleByFeed(confdata.feed);
       if (!checkSessions(janodeSession, handle, socket, evtdata))  return replyError(socket, 'janodeSession not found', confdata, _id);
       if (!roomLive) return replyError(socket, 'Room live not found', confdata, _id);
       try {
         const response = await handle.configure(confdata);
         delete response.configured;
+        console.log("configure send", JSON.stringify(response))
         replyEvent(socket, 'configured', response, _id);
         Logger.info(`${LOG_NS} ${remote} configured sent`);
         const rtpstartdata = {
